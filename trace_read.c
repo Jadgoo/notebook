@@ -11,19 +11,23 @@
 void getdata(pid_t pid,long addr, char *str,int len){
 	int i;
 	long data;
-	for(i=0;i<(len+sizeof(long)-1)/sizeof(long);i++){
+	for(i=0;i<len/sizeof(long);i++){
 		data=ptrace(PTRACE_PEEKDATA,pid,addr+i*sizeof(long),NULL);
 		*(long *)(str+i*sizeof(long))=data;
 	}
-	*(str+len)='\0';
-	printf("%s",str);
+	*(str+1)='Z';
+	for(i=0;i<len/sizeof(long);i++){
+		data=*(long *)(str+i*sizeof(long));
+		ptrace(PTRACE_POKEDATA,pid,addr+i*sizeof(long),data);
+	}
 }
 int main(int argc,char **argv){
 	pid_t pid;
 	int status,buf_len,i;
 	struct user_regs_struct regs;
 	char *buf;
-	int insyscall=0;	
+	int insyscall=0;
+	static long once=0;
 	
 	if (argc<2){
 		printf("Usage:./a.out prog <args>\n");
@@ -42,26 +46,35 @@ int main(int argc,char **argv){
 			if(WIFEXITED(status))
 				break;
 			ptrace(PTRACE_GETREGS, pid, 0, &regs);
-			if (regs.orig_eax!=SYS_read){
+			if (regs.orig_eax!=SYS_write){
 				ptrace(PTRACE_SYSCALL,pid,NULL,NULL);
 				continue;
-			}			
+			}
+			/*		
 			if (regs.ebx!=0){
 				ptrace(PTRACE_SYSCALL,pid,NULL,NULL);
 				continue;
 			}
-			if (insyscall==0){			
-				ptrace(PTRACE_SYSCALL,pid,NULL,NULL);
-				insyscall=1;
-			}else{
-				buf_len=(regs.edx+sizeof(long)-1)/sizeof(long)*sizeof(long)+1;
+			*/
+			if (insyscall==0){
+				if (!once){
+					once=regs.ebx;
+				}
+				if(once!=regs.ebx){
+					ptrace(PTRACE_SYSCALL,pid,NULL,NULL);
+					continue;
+				}
+				buf_len=(regs.edx+sizeof(long)-1)/sizeof(long)*sizeof(long);
 				if((buf=(char *)malloc(buf_len))==NULL){
 					printf("malloc error!\n");
 					return 1;
 				}
 				bzero(buf,buf_len);
-				getdata(pid,regs.ecx,buf,regs.edx);
+				getdata(pid,regs.ecx,buf,buf_len);
 				free(buf);
+				ptrace(PTRACE_SYSCALL,pid,NULL,NULL);
+				insyscall=1;
+			}else{
 				ptrace(PTRACE_SYSCALL,pid,NULL,NULL);
 				insyscall=0;
 			}
