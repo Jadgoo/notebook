@@ -10,6 +10,7 @@
 #include<string.h>
 #include<errno.h>
 #include<sys/un.h>
+#include<sys/mman.h>
 #define PAGE_SIZE (1<<12)
 
 char *dst;
@@ -121,11 +122,17 @@ int main(int argc,char **argv)
 	pthread_t fill_thread;
 	int faultfd;
 	void *ret;
+	int tmp;
 
 	if (posix_memalign((void **)&dst,PAGE_SIZE,dst_len)){
 		printf("init memory error!\n");
 		return -1;
 	}
+	if (mprotect(dst,dst_len,PROT_READ|PROT_WRITE|PROT_EXEC)){
+		printf("mprotect error!\n");
+		return -1;
+	}
+	printf("memory at:%p\n",dst);
 
 	if ((faultfd=syscall(__NR_userfaultfd, 0))<0){
 		printf("userfaultfd syscall error!\n");
@@ -144,7 +151,10 @@ int main(int argc,char **argv)
 	/*
 	 * be careful of 'printf' buffer, '\n' will flush.
 	 */
+//	tmp=(*(int (*)())dest)();
 	printf("%s\n",dst);
+//	printf("result is %d\n",tmp);
+	printf("%d\n",getpid());
 	if (pthread_join(fill_thread,&ret)){
 		printf("wait thread error!\n");
 		return -1;
@@ -153,7 +163,7 @@ int main(int argc,char **argv)
 		printf("inner thread error!\n");
 		return -1;
 	}
-	
+	sleep(50);
 	close(faultfd);
 	free(dst);
 	return 0;
