@@ -4,11 +4,16 @@
 #include<string.h>
 #include<errno.h>
 #include<sys/un.h>
+#include<sys/stat.h>
+#include<unistd.h>
+#include<fcntl.h>
+
+#define PAGE_SIZE (1<<12)
 int main(int argc,char **argv)
 {
-	char data[]="This is test data!\n";
+	unsigned char data[PAGE_SIZE];
 	struct sockaddr_un server;
-	int sockfd,tmp;
+	int sockfd,tmp,fd;
 
 	if (argc!=2){
 		printf("useage:./a.out sockaddr\n");
@@ -26,7 +31,12 @@ int main(int argc,char **argv)
 		printf("%s\n",strerror(errno));
 		goto clear_sockfd;
 	}
-	write(sockfd,data,sizeof(data));
+	if ((fd=open("./bin",O_RDONLY))<0){
+		printf("open app error!\n");
+		goto clear_sockfd;
+	}
+	read(fd,data,PAGE_SIZE);
+	write(sockfd,data,1<<11);
 	printf("write success!\n");
 	close(sockfd);
 	return 0;
