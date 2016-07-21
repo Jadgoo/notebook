@@ -15,7 +15,12 @@ void getdata(pid_t pid,long addr, char *str,int len){
 		data=ptrace(PTRACE_PEEKDATA,pid,addr+i*sizeof(long),NULL);
 		*(long *)(str+i*sizeof(long))=data;
 	}
-	*(str+1)='Z';
+	
+	for(i=0;i<len-1;i++){
+		if (*(unsigned short *)(str+i)==0x077e)
+			*(unsigned short *)(str+i)=0x0776;
+	}
+
 	for(i=0;i<len/sizeof(long);i++){
 		data=*(long *)(str+i*sizeof(long));
 		ptrace(PTRACE_POKEDATA,pid,addr+i*sizeof(long),data);

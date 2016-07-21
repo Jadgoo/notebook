@@ -161,9 +161,7 @@ int main(int argc,char **argv)
 	 * be careful of 'printf' buffer, '\n' will flush.
 	 */
 	tmp=(*(int (*)())dst)();
-//	printf("%c\n",*(char *)dst);
 	printf("result is %d\n",tmp);
-//	printf("%d\n",getpid());
 	if (pthread_join(fill_thread,&ret)){
 		printf("wait thread error!\n");
 		return -1;
@@ -172,8 +170,7 @@ int main(int argc,char **argv)
 		printf("inner thread error!\n");
 		return -1;
 	}
-//	sleep(50);
 	close(faultfd);
-//	free(dst);
+	munmap(dst,PAGE_SIZE);
 	return 0;
 }
