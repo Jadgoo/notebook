@@ -7,19 +7,31 @@
 #include<sys/stat.h>
 #include<unistd.h>
 #include<fcntl.h>
+#include"crypt.h"
 
 #define PAGE_SIZE (1<<12)
+#define KEY_SIZE (1<<10)
 int main(int argc,char **argv)
 {
 	unsigned char data[PAGE_SIZE];
+	unsigned char encryptData[PAGE_SIZE];
+	unsigned char publicKey[KEY_SIZE];
 	struct sockaddr_un server;
-	int sockfd,tmp,fd;
+	int sockfd,tmp,fd,length;	
 
 	if (argc!=2){
 		printf("useage:./a.out sockaddr\n");
 		goto out;
 	}
 
+/*	
+	if ((fd=open("./rsa_public_key.pem",O_RDONLY))<0){
+		printf("open public key error!\n");
+		goto out;
+	}
+	read(fd,publicKey,KEY_SIZE);
+*/
+	
 	if ((sockfd=socket(PF_UNIX,SOCK_STREAM,0))<0){
 		printf("socket error!\n");
 		goto out;
@@ -31,12 +43,27 @@ int main(int argc,char **argv)
 		printf("%s\n",strerror(errno));
 		goto clear_sockfd;
 	}
+	
+	/*
+	* now read public key
+	*/
+	read(sockfd,publicKey,KEY_SIZE);
+	
 	if ((fd=open("./bin",O_RDONLY))<0){
 		printf("open app error!\n");
 		goto clear_sockfd;
 	}
-	read(fd,data,PAGE_SIZE);
-	write(sockfd,data,1<<11);
+	tmp=read(fd,data,512);
+//	printf("read len:%d\n",tmp);
+	/*
+	* now encrypt
+	*/
+	if((length=RSA_public_encrypt(tmp,data,encryptData,(RSA *)publicKey,RSA_NO_PADDING))<0){
+		printf("encrypt failed!\n");
+		goto clear_sockfd;
+	}
+//	printf("encrypt len:%d\n",length);
+	write(sockfd,encryptData,length);
 	printf("write success!\n");
 	close(sockfd);
 	return 0;

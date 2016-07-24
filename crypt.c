@@ -5,10 +5,46 @@
 #include<openssl/bio.h>
 #include<openssl/err.h>
 #include<stdio.h>
-#include<sys/stat.h>
-#include<fcntl.h>
-#include<unistd.h>
-#define BUF_SIZE 1024
+
+BIO *keypub,*keypriv;
+
+int generate_key(void)
+{
+	int ret=-1;
+	RSA *rsa= NULL;
+	keypub=NULL;
+	keypriv=NULL;
+
+    keypub = BIO_new(BIO_s_mem());
+    keypriv = BIO_new(BIO_s_mem());
+    if (!keypub || !keypriv){
+    	printf("create bio file error!\n");
+    	goto error;
+    }
+    rsa = RSA_generate_key( 1024, RSA_F4, NULL, NULL);
+    if (!rsa){
+    	if (!PEM_write_bio_RSAPublicKey(keypub, rsa)){
+    		printf("create public key error!\n");
+    		goto error;
+    	}
+    	if (!PEM_write_bio_RSAPrivateKey(keypriv, rsa, NULL, NULL, 0, NULL, NULL)){
+     		printf("create private key error!\n");
+    		goto error;
+    	}
+    }
+    ret = 0;
+    goto out;
+    
+error:
+	if (keypub)
+		BIO_free(keypub);
+	if (keypriv)
+		BIO_free(keypriv);
+	if (rsa) 
+		RSA_free(rsa);
+out:	
+    return ret;
+}
  
 RSA * createRSA(unsigned char * key,int public)
 {
@@ -31,96 +67,28 @@ RSA * createRSA(unsigned char * key,int public)
     }
     return rsa;
 }
- 
-int public_encrypt(unsigned char * data,int data_len,unsigned char * key, unsigned char *encrypted)
+
+int public_encrypt(int src_len, void *src,void *dest, void *key)
 {
     RSA * rsa = createRSA(key,1);
-    int result = RSA_public_encrypt(data_len,data,encrypted,rsa,RSA_PKCS1_PADDING);
+    int result = RSA_public_encrypt(src_len,src,dest,rsa,RSA_PKCS1_PADDING);
     return result;
 }
-int private_decrypt(unsigned char * enc_data,int data_len,unsigned char * key, unsigned char *decrypted)
+int private_decrypt(int src_len, void *src,void *dest, void *key)
 {
     RSA * rsa = createRSA(key,0);
-    int  result = RSA_private_decrypt(data_len,enc_data,decrypted,rsa,RSA_PKCS1_PADDING);
+    int  result = RSA_private_decrypt(src_len,src,dest,rsa,RSA_PKCS1_PADDING);
     return result;
 }
- 
- 
-int private_encrypt(unsigned char * data,int data_len,unsigned char * key, unsigned char *encrypted)
+int private_encrypt(int src_len, void *src,void *dest, void *key)
 {
     RSA * rsa = createRSA(key,0);
-    int result = RSA_private_encrypt(data_len,data,encrypted,rsa,RSA_PKCS1_PADDING);
+    int result = RSA_private_encrypt(src_len,src,dest,rsa,RSA_PKCS1_PADDING);
     return result;
 }
-int public_decrypt(unsigned char * enc_data,int data_len,unsigned char * key, unsigned char *decrypted)
+int public_decrypt(int src_len, void *src,void *dest, void *key)
 {
     RSA * rsa = createRSA(key,1);
-    int  result = RSA_public_decrypt(data_len,enc_data,decrypted,rsa,RSA_PKCS1_PADDING);
+    int  result = RSA_public_decrypt(src_len,src,dest,rsa,RSA_PKCS1_PADDING);
     return result;
-}
- 
-void printLastError(char *msg)
-{
-    char * err = malloc(130);;
-    ERR_load_crypto_strings();
-    ERR_error_string(ERR_get_error(), err);
-    printf("%s ERROR: %s\n",msg, err);
-    free(err);
-}
- 
-int main()
-{
-	char publicKey[BUF_SIZE];
-	char privateKey[BUF_SIZE];
-	int fd;
-	if ((fd=open("./rsa_private_key.pem",O_RDONLY))<0){
-		printf("open private key error!\n");
-		return -1;
-	}
-	read(fd,privateKey,BUF_SIZE);
-	if ((fd=open("./rsa_public_key.pem",O_RDONLY))<0){
-		printf("open public key error!\n");
-		return -1;
-	}
-	read(fd,publicKey,BUF_SIZE);
- 
-	char plainText[] = "Hello this is Raviaaaaaaaaa";
-    
-	unsigned char  encrypted[4098]={};
-	unsigned char decrypted[4098]={};
-	 
-	int encrypted_length= public_encrypt(plainText,strlen(plainText),publicKey,encrypted);
-	if(encrypted_length == -1)
-	{
-		printLastError("Public Encrypt failed ");
-		exit(0);
-	}
-	printf("Encrypted length =%d\n",encrypted_length);
-	 
-	int decrypted_length = private_decrypt(encrypted,encrypted_length,privateKey, decrypted);
-	if(decrypted_length == -1)
-	{
-		printLastError("Private Decrypt failed ");
-		exit(0);
-	}
-	printf("Decrypted Text =%s\n",decrypted);
-	printf("Decrypted Length =%d\n",decrypted_length);
-	 
-	 
-	encrypted_length= private_encrypt(plainText,strlen(plainText),privateKey,encrypted);
-	if(encrypted_length == -1)
-	{
-		printLastError("Private Encrypt failed");
-		exit(0);
-	}
-	printf("Encrypted length =%d\n",encrypted_length);
-	 
-	decrypted_length = public_decrypt(encrypted,encrypted_length,publicKey, decrypted);
-	if(decrypted_length == -1)
-	{
-		printLastError("Public Decrypt failed");
-		exit(0);
-	}
-	printf("Decrypted Text =%s\n",decrypted);
-	printf("Decrypted Length =%d\n",decrypted_length); 
 }
