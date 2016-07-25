@@ -11,16 +11,14 @@
 #include<errno.h>
 #include<sys/un.h>
 #include<sys/mman.h>
-#include <sys/stat.h>
-#include <fcntl.h>
+#include<sys/stat.h>
+#include<fcntl.h>
 #include"crypt.h"
 #define PAGE_SIZE (1<<12)
-#define KEY_SIZE (1<<10)
 #define FAULT_ADDR 0x90000000
 
 char *dst;
 int dst_len=PAGE_SIZE;
-extern BIO *keypub,*keypriv;
 
 int faultfd_api(int faultfd)
 {
@@ -70,22 +68,27 @@ void *fill_memory(void *arg)
 	char src[PAGE_SIZE];
 	char decryptSrc[PAGE_SIZE];
 	char privateKey[KEY_SIZE];
+	char publicKey[KEY_SIZE];
 	int faultfd=*(int *)arg;
 	char path[]="/tmp/faultfd-XXXXXX";
 	int sockfd,acceptfd,tmp,data_len;
 	struct sockaddr_un server;
-	RSA *publicKey=NULL;
-	RSA *privKey=NULL;
 	void *ret=NULL;
-	
-
-/*	
+	/*
+	* now read key pairs
+	*/
 	if ((tmp=open("./rsa_private_key.pem",O_RDONLY))<0){
 		printf("open private key error!\n");
 		goto out;
 	}
 	read(tmp,privateKey,KEY_SIZE);
-*/
+
+	if ((tmp=open("./rsa_public_key.pem",O_RDONLY))<0){
+		printf("open public key error!\n");
+		goto out;
+	}
+	read(tmp,publicKey,KEY_SIZE);
+
 	if (!mkdtemp(path)){
 		printf("make path %s error:%s\n",path,strerror(errno));
 		goto out;
@@ -115,45 +118,29 @@ void *fill_memory(void *arg)
 		printf("accept error!\n");
 		goto clear_sockfd;
 	}
-	/*
-	* create and read keys
-	*/
-	if (generate_key()<0){
-		goto clear_sockfd;
-	}
-	if (!(publicKey=PEM_read_bio_RSAPublicKey(keypub,NULL,NULL, NULL))){
-		printf("read public key error!\n");
-		goto clear_keys;
-	}
-	if (!(privKey=PEM_read_bio_RSAPrivateKey(keypriv,NULL,NULL, NULL))){
-		printf("read public key error!\n");
-		goto clear_keys;
-	}
+	
 	/*
 	* now send public key
 	*/
-	write(acceptfd,publicKey,RSA_size(publicKey));
-	
+	write(acceptfd,publicKey,KEY_SIZE);
+	/*
+	* now read encrypted data
+	*/
 	data_len=read(acceptfd,src,PAGE_SIZE);
 	printf("read len:%d\n",data_len);
 	/*
 	* now decrypt data
-	*/	
-	if((tmp=RSA_private_decrypt(data_len,src,decryptSrc,privKey,RSA_NO_PADDING))<0){
+	*/
+	if ((tmp=private_decrypt(data_len,src,decryptSrc,privateKey))<0){
 		printf("decrypt failed!\n");
-		goto clear_keys;
+		goto clear_acceptfd;
 	}
 	printf("decrypt len:%d\n",tmp);
 	if (faultfd_copy(faultfd,dst,decryptSrc,dst_len)){
-		goto clear_keys;
+		goto clear_acceptfd;
 	}
 	ret=(void *)1;
 
-clear_keys:
-	if (publicKey) 
-		RSA_free(publicKey);
-	if (privKey) 
-		RSA_free(privKey);
 clear_acceptfd:
 	close(acceptfd);
 clear_sockfd:

@@ -6,6 +6,7 @@
 #include<openssl/err.h>
 #include<stdio.h>
 
+/*
 BIO *keypub,*keypriv;
 
 int generate_key(void)
@@ -45,7 +46,7 @@ error:
 out:	
     return ret;
 }
- 
+*/
 RSA * createRSA(unsigned char * key,int public)
 {
     RSA *rsa= NULL;
