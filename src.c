@@ -40,7 +40,7 @@ int main(int argc,char **argv)
 		goto clear_sockfd;
 	}
 	tmp=read(fd,data,512);
-	printf("read len:%d\n",tmp);
+//	printf("read len:%d\n",tmp);
 
 	/*
 	* now get public key
@@ -53,7 +53,7 @@ int main(int argc,char **argv)
 		printf("encrypt failed!\n");
 		goto clear_sockfd;
 	}
-	printf("encrypt len:%d\n",length);
+//	printf("encrypt len:%d\n",length);
 	write(sockfd,encryptData,length);
 	printf("write success!\n");
 	close(sockfd);
