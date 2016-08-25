@@ -41,7 +41,6 @@ int main(int argc,char **argv)
 	}
 	tmp=read(fd,data,512);
 //	printf("read len:%d\n",tmp);
-
 	/*
 	* now get public key
 	*/
