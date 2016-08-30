@@ -1,8 +1,0 @@
-epoll源码分析 http://blog.chinaunix.net/uid-28443939-id-3470593.html
-c语言位域
-userfaultfd_ctx
-userfaultfd:http://xiaogr.com/?p=96
-
-ram_load_postcopy
-  qemu_get_buffer
-  qemu_get_buffer_in_place
