@@ -1,6 +1,6 @@
 <?xml version='1.0' encoding='UTF-8'?>
 <gupdate xmlns='http://www.google.com/update2/response' protocol='2.0'>
   <app appid='gmoffbicocoeglimpiomeegoejfchpcf'>
-    <updatecheck codebase='http://10.204.22.25:9999/chrome-extension.crx' version='0.1' />
+    <updatecheck codebase='https://raw.githubusercontent.com/liutgnu/notebook/master/chrome-extension.crx' version='0.1' />
   </app>
 </gupdate>
